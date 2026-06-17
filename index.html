@@ -99,7 +99,7 @@
   .vcard-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
   .tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; letter-spacing: 0.03em; }
   .tag-TV       { background: var(--green-dark); color: #fff; }
-  .tag-Radio    { background: var(--green-light); color: #fff; }
+  .tag-Radio    { background: #3A5C8A; color: #fff; }
   .tag-Impresso { background: var(--green-mid); color: #fff; }
   .tag-Digital  { background: #6B4E8A; color: #fff; }
   .tag-Agencia  { background: #8A4E3A; color: #fff; }
@@ -444,12 +444,15 @@ function applyFilters() {
   const hasFilter = search || seg || abr || selectedUF;
   document.getElementById('clear-btn').style.display = hasFilter ? 'block' : 'none';
 
-  currentFiltered = veiculos.filter(v =>
-    (!search || (v.Nome||'').toLowerCase().includes(search) || (v.Grupo||'').toLowerCase().includes(search)) &&
-    (!seg    || v.Segmento   === seg) &&
-    (!abr    || v.Abrangencia === abr) &&
-    (!selectedUF || v.UF === selectedUF)
-  );
+  currentFiltered = veiculos.filter(v => {
+    const segs = (v.Segmento||'').split(',').map(s => s.trim());
+    return (
+      (!search || (v.Nome||'').toLowerCase().includes(search) || (v.Grupo||'').toLowerCase().includes(search)) &&
+      (!seg    || segs.includes(seg)) &&
+      (!abr    || v.Abrangencia === abr) &&
+      (!selectedUF || v.UF === selectedUF)
+    );
+  });
   renderCards(currentFiltered);
 }
 
@@ -464,6 +467,16 @@ function clearFilters() {
 }
 
 // ── CARDS ─────────────────────────────────────────────────────
+function renderTags(v) {
+  const segs = (v.Segmento||'').split(',').map(s => s.trim()).filter(Boolean);
+  const sc = s => 'tag tag-' + s.replace(/[^a-zA-Z]/g,'');
+  return [
+    ...segs.map(s => `<span class="${sc(s)}">${s}</span>`),
+    v.Abrangencia ? `<span class="tag tag-abr">${v.Abrangencia}</span>` : '',
+    v.UF          ? `<span class="tag tag-abr">${v.UF}</span>` : '',
+  ].join('');
+}
+
 function renderCards(data) {
   const c = document.getElementById('cards-container');
   if (!data.length) {
@@ -472,15 +485,10 @@ function renderCards(data) {
       : '<div class="empty-state">Clique em um estado no mapa para ver os veículos.</div>';
     return;
   }
-  const sc = s => 'tag tag-' + (s||'').replace(/[^a-zA-Z]/g,'');
   c.innerHTML = data.map((v, i) => `
     <div class="vcard" onclick="openModal(${i})">
       <div class="vcard-name">${v.Nome||'—'}</div>
-      <div class="vcard-tags">
-        ${v.Segmento    ? `<span class="${sc(v.Segmento)}">${v.Segmento}</span>` : ''}
-        ${v.Abrangencia ? `<span class="tag tag-abr">${v.Abrangencia}</span>` : ''}
-        ${v.UF          ? `<span class="tag tag-abr">${v.UF}</span>` : ''}
-      </div>
+      <div class="vcard-tags">${renderTags(v)}</div>
       ${v.Resumo ? `<div class="vcard-desc">${v.Resumo.substring(0,110)}${v.Resumo.length>110?'…':''}</div>` : ''}
       <div class="vcard-plus">+</div>
     </div>
@@ -491,13 +499,8 @@ function renderCards(data) {
 function openModal(idx) {
   const v = currentFiltered[idx];
   if (!v) return;
-  const sc = s => 'tag tag-' + (s||'').replace(/[^a-zA-Z]/g,'');
   document.getElementById('modal-name').textContent = v.Nome || '';
-  document.getElementById('modal-tags').innerHTML = [
-    v.Segmento    ? `<span class="${sc(v.Segmento)}">${v.Segmento}</span>` : '',
-    v.Abrangencia ? `<span class="tag tag-abr">${v.Abrangencia}</span>` : '',
-    v.UF          ? `<span class="tag tag-abr">${v.UF}</span>` : '',
-  ].join('');
+  document.getElementById('modal-tags').innerHTML = renderTags(v);
   const siteEl = document.getElementById('modal-site');
   if (v.Site) {
     siteEl.href = v.Site.startsWith('http') ? v.Site : 'https://' + v.Site;
@@ -551,3 +554,4 @@ function exportCSV() {
 </script>
 </body>
 </html>
+
